@@ -35,10 +35,6 @@
 * `programs_database.py` - 进化采样函数
 * `sampler.py` - 向 LLM 发送提示并获取结果
 
-## 在 Colab 上运行 FunSearch 演示
-
-`bin_packing/bin_packing_funsearch.ipynb` 中的 Jupyter notebook 可以通过 Open In Colab 打开。请注意，不要在本地运行 Jupyter notebook，因为 Jupyter notebook 后端不支持多进程运行。
-
 ## 在本地运行 FunSearch 演示
 
 ### 参数和设置
