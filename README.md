@@ -1,110 +1,111 @@
-# FunSearch Implementation
+# FunSearch 实现
 
-This repository implements the following publication:
+这个仓库是对以下论文的实现：
 
-> Romera-Paredes, B. et al. [Mathematical discoveries from program search with large language models](https://www.nature.com/articles/s41586-023-06924-6). *Nature* (2023)
+> Romera-Paredes, B. et al. Mathematical discoveries from program search with large language models. _Nature_ (2023)
 
-## Installation and Requirements
+本项目是基于 [Google DeepMind 的 FunSearch](https://github.com/google-deepmind/funsearch/blob/main/bin_packing/bin_packing.ipynb) 进行修改和完善的版本，原始代码不完整，缺少沙盒内部运行和调用大模型的函数。本仓库是由 [@YuanTian-SJTU](https://github.com/YuanTian-SJTU/Deepmind-Nature-Repro-FunSearch.git) 完成的可运行版本。
 
-Please note that **the Python version must be larger or equal to Python 3.9**, or the '*ast*' package used in the implementations will fail to work. 
+## 安装和要求
 
-You can run FunSearch for online bin packing locally if enough GPU devices are available. Or you can try to use LLM interfaces to request responses online. 
+请注意，**Python 版本必须大于或等于 Python 3.9**，否则实现中使用的 `_ast_` 包将无法正常工作。
 
-Please install the packages listed in `requirements.txt`.
+如果有足够的 GPU 设备，您可以在本地运行 FunSearch 进行在线装箱问题求解。或者，您也可以尝试使用 LLM 接口在线请求响应。
 
-## Project Structure
+请安装 `requirements.txt` 中列出的包。
 
-There are some independent directories in this project:
+## 项目结构
 
-- `bin_packing` contains an example jupyter notebook for the bin packing task. [See here](#colab).
-- `implementation` contains an implementation of the evolutionary algorithm, code manipulation routines, and a single-threaded implementation of the FunSearch pipeline. 
-- `llm-server` contains the implementations of an LLM server that gets the prompt by monitoring requests from FunSearch and response to the inference results to the FunSearch algorithm. 
+本项目包含以下独立目录：
 
-## Files in `funsearch/implementation`
+* `bin_packing` - 包含装箱任务的示例 Jupyter notebook
+* `implementation` - 包含进化算法、代码操作例程和 FunSearch 流程的单线程实现
+* `llm-server` - 包含 LLM 服务器的实现，通过监控来自 FunSearch 的请求获取提示，并将推理结果响应给 FunSearch 算法
 
-There are some files in `funsearch/implementation`. They are as follows:
+## `funsearch/implementation` 中的文件
 
-- `code_manipulatoin.py` provides functions to modify the code in the specification.
-- `config.py` includes configs of funsearch.
-- `evaluator.py` trims the sample results from LLM, and evaluates the sampled functions.
-- `evaluator_accelerate.py` accelerates the evaluation using the 'numba' library.
-- `funsearch.py` implements funsearch pipeline. 
-- `profile.py` records the score of the sampled functions.
-- `programs_database.py` evolves the sampled functions.
-- `sampler.py` sends prompts to LLM and gets results.
+`funsearch/implementation` 中包含以下文件：
 
-## <span id="colab">Run FunSearch Demo on Colab</span>
+* `code_manipulation.py` - 提供修改规范中代码的函数
+* `config.py` - 包含 funsearch 的配置
+* `evaluator.py` - 修剪来自 LLM 的样本结果，并评估采样函数
+* `evaluator_accelerate.py` - 使用 'numba' 库加速评估
+* `funsearch.py` - 实现 funsearch 流程
+* `profile.py` - 记录采样函数的得分
+* `programs_database.py` - 进化采样函数
+* `sampler.py` - 向 LLM 发送提示并获取结果
 
-The jupyter notebook in `bin_packing/bin_packing_funsearch.ipynb` can be opened via [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/RayZhhh/funsearch/blob/main/bin_packing/bin_packing_funsearch.ipynb). Please note that do not run jupyter notebook locally, as the jupyter notebook backend does not support multiprocess running.
+## 在 Colab 上运行 FunSearch 演示
 
-## Run FunSearch Demo Locally
+`bin_packing/bin_packing_funsearch.ipynb` 中的 Jupyter notebook 可以通过 Open In Colab 打开。请注意，不要在本地运行 Jupyter notebook，因为 Jupyter notebook 后端不支持多进程运行。
 
-### Parameters and Settings
+## 在本地运行 FunSearch 演示
 
-If you want to adjust the following parameters, you should modify the code in `funsearch/implementation` manually. 
+### 参数和设置
 
-- ~~`timeout_seconds` This parameter defines the maximum evaluation time for a single function. If the evaluation time exceeds this, the evaluation process will be killed. This strategy can prevent *while True* loop and reduce total evaluation costs but may discard potential outstanding functions. You can modify this in `implementation/evaluator.py/class Evaluator`.~~
-- `_reduce_score` This function does reduction to the score of a sampled function in some instances. The reduction is implemented as *mean* by default. You can modify it in `implementation/program_database.py`, where you can find a '_reduce_score' function.
+如果要调整以下参数，应手动修改 `funsearch/implementation` 中的代码。
 
-### Use Local LLM
+* `_reduce_score` - 此函数对某些实例中采样函数的分数进行降维。默认实现为 _mean_。您可以在 `implementation/program_database.py` 中修改它，在那里您可以找到 '\_reduce\_score' 函数。
 
-1. First, start the local LLM server.
+### 使用本地 LLM
 
-```shell
-# Suppose we are in funsearch directory (root dir of this project).
+1. 首先，启动本地 LLM 服务器。
+
+```bash
+# 假设我们在 funsearch 目录（本项目的根目录）
 cd llm-server
-# Start LLM server: python llm_server.py --port 8088 --path [model path] --d [GPU IDs]
+# 启动 LLM 服务器：python llm_server.py --port 8088 --path [模型路径] --d [GPU ID]
 python llm_server.py --port 8088 --path /LLms/CodeLlama-34b --d 0 1 2 3 4 5
 ```
 
-2. Then, start FunSearch.
+2. 然后，启动 FunSearch。
 
-```shell
-# Run FunSearch
+```bash
+# 运行 FunSearch
 python funsearch_bin_packing_local_llm.py
 ```
 
-You can see logs via *Tensorboard*. Please check the *log_dir* variable defined in `bin_packing_funsearch_my_template.py`, and start the Tensorboard using the following instructions:
+您可以通过 _Tensorboard_ 查看日志。请检查 `bin_packing_funsearch_my_template.py` 中定义的 _log\_dir_ 变量，并使用以下指令启动 Tensorboard：
 
-```shell
-# Suppose we are in funsearch directory (root directory of this project)
+```bash
+# 假设我们在 funsearch 目录（本项目的根目录）
 cd logs
 tensorboard --logdir funsearch_local_llm
 ```
 
-### Use LLM Interfaces
+### 使用 LLM 接口
 
-1. Set the API's IP address according to your API provider. The code is in `funsearch_bin_packing_llm_api.py` line 33.
+1. 根据您的 API 提供商设置 API 的 IP 地址。代码在 `funsearch_bin_packing_llm_api.py` 第 33 行。
 
 ```python
 conn = http.client.HTTPSConnection("api.chatanywhere.com.cn")
 ```
 
-2. Set the API key in request headers, the code lies in `funsearch_bin_packing_llm_api.py` line 44-48. You should replace `sk-ys...` with your API key.
+2. 在请求头中设置 API 密钥，代码位于 `funsearch_bin_packing_llm_api.py` 第 44-48 行。您应该将 `sk-ys...` 替换为您的 API 密钥。
 
 ```python
 headers = {
-  'Authorization': 'Bearer sk-ys02zx...(replace with your API key)...',
+  'Authorization': 'Bearer sk-ys02zx...(替换为您的 API 密钥)...',
   'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
   'Content-Type': 'application/json'
 }
 ```
 
-3. Start FunSearch.
+3. 启动 FunSearch。
 
-```shell
-# Run FunSearch
+```bash
+# 运行 FunSearch
 python funsearch_bin_packing_llm_api.py
 ```
 
-You can see logs via *Tensorboard*. Please check the *log_dir* variable defined in `bin_packing_funsearch_my_template.py`, and start the Tensorboard using the following instructions:
+您可以通过 _Tensorboard_ 查看日志。请检查 `bin_packing_funsearch_my_template.py` 中定义的 _log\_dir_ 变量，并使用以下指令启动 Tensorboard：
 
-```shell
-# Suppose we are in funsearch directory (root directory of this project).
+```bash
+# 假设我们在 funsearch 目录（本项目的根目录）
 cd logs
 tensorboard --logdir funsearch_llm_api
 ```
 
-## Issue
+## 问题
 
-If you encounter any difficulty using the code, please do not hesitate to submit an issue!
+如果您在使用代码时遇到任何困难，请随时提交 issue！
