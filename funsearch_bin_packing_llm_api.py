@@ -86,8 +86,8 @@ class LLMAPI(sampler.LLM):
                     ]
                 })
                 headers = {
-                    'Authorization': 'Bearer sk-oiQAi8NAUyEt4jH3BsWwFE2FHZydMqVDOcadGep3xBIisYx4',
-                    'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+                    'Authorization': 'Bearer ',
+                    'User-Agent': 'Apifox/1.0.0 ( )',
                     'Content-Type': 'application/json'
                 }
                 conn.request("POST", "/v1/chat/completions", payload, headers)
