@@ -26,7 +26,7 @@ def online_binpack(
     packing = [bin_items for bin_items in packing if bin_items]
     return packing, bins
 
-
+@funsearch.run
 def evaluate(instances: dict) -> float:
     """Evaluate heuristic function on a set of online binpacking instances."""
     # List storing number of bins used for each instance.
@@ -49,7 +49,7 @@ def evaluate(instances: dict) -> float:
     # across instances (as we want to minimize number of bins).
     return -np.mean(num_bins)
 
-
+@funsearch.evolve
 def priority(item: float, bins: np.ndarray) -> np.ndarray:
     """Returns priority with which we want to add item to each bin.
 
@@ -64,3 +64,4 @@ def priority(item: float, bins: np.ndarray) -> np.ndarray:
     log_ratios = np.log(ratios)
     priorities = -log_ratios
     return priorities
+    # return np.zeros_like(bins) 
