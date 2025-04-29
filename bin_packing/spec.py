@@ -51,7 +51,7 @@ def evaluate(instances: dict) -> float:
 
 @funsearch.evolve
 def priority(item: float, bins: np.ndarray) -> np.ndarray:
-    """Returns priority with which we want to add item to each bin.
+    """Returns priority with which we want to add item to each bin with Best Fit strategy.
 
     Args:
         item: Size of item to be added to the bin.
