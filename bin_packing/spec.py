@@ -64,4 +64,3 @@ def priority(item: float, bins: np.ndarray) -> np.ndarray:
     log_ratios = np.log(ratios)
     priorities = -log_ratios
     return priorities
-    # return np.zeros_like(bins) 

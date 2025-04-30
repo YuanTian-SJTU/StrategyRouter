@@ -102,6 +102,9 @@ def _sample_to_program(
     program = copy.deepcopy(template)
     evolved_function = program.get_function(function_to_evolve)
     evolved_function.body = body
+    # 如果evolved_function的body里有注释段，则删除docstring
+    if '"""' in evolved_function.body:
+        evolved_function.docstring = ''
     return evolved_function, str(program)
 
 

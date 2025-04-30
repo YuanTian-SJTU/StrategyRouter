@@ -98,7 +98,7 @@ class LLMAPI(sampler.LLM):
                 conn = http.client.HTTPSConnection("api.siliconflow.cn")
                 payload = json.dumps({
                     "max_tokens": 512,
-                    "model": "Qwen/Qwen2.5-72B-Instruct",
+                    "model": "THUDM/GLM-4-32B-0414",
                     "messages": [
                         {
                             "role": "user",
@@ -284,7 +284,6 @@ if __name__ == '__main__':
     plt.xlabel('Sample')
     plt.ylabel('Score')
     plt.legend()
-    plt.grid(True)
     
     plt.tight_layout()
     plt.show()

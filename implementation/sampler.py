@@ -20,6 +20,7 @@ from abc import ABC, abstractmethod
 from typing import Collection, Sequence, Type
 import numpy as np
 import time
+import random
 
 from implementation import evaluator
 from implementation import programs_database
@@ -71,6 +72,105 @@ class Sampler:
     """Node that samples program continuations and sends them for analysis.
     """
     _global_samples_nums: int = 1  # RZ: this variable records the global sample nums
+    
+    # Predefined priority functions
+    _predefined_functions = {
+        'first_fit': '''
+    """Returns priority with which we want to add item to each bin with First Fit strategy.
+
+    The First Fit strategy places items in the first bin that can accommodate them.
+    This strategy is simple and fast but may not always lead to optimal bin utilization.
+
+    Args:
+        item: Size of item to be added to the bin.
+        bins: Array of capacities for each bin.
+
+    Return:
+        Array of same size as bins with priority score of each bin.
+    """
+    valid_bins = bins >= item
+    priorities = np.where(valid_bins, 1, 0)
+    return priorities
+''',
+        'best_fit': '''
+    """Returns priority with which we want to add item to each bin with Best Fit strategy.
+
+    The Best Fit strategy places items in the bin that leaves the smallest residual space.
+    This strategy aims to minimize space wastage but may lead to early bin exhaustion.
+
+    Args:
+        item: Size of item to be added to the bin.
+        bins: Array of capacities for each bin.
+
+    Return:
+        Array of same size as bins with priority score of each bin.
+    """
+    residual_space = bins - item
+    valid_bins = residual_space >= 0
+    priorities = np.where(valid_bins, -residual_space, np.inf)
+    return priorities
+''',
+        'worst_fit': '''
+    """Returns priority with which we want to add item to each bin with Worst Fit strategy.
+
+    The Worst Fit strategy places items in the bin that leaves the largest residual space.
+    This strategy aims to balance bin utilization but may lead to inefficient packing.
+
+    Args:
+        item: Size of item to be added to the bin.
+        bins: Array of capacities for each bin.
+
+    Return:
+        Array of same size as bins with priority score of each bin.
+    """
+    residual_space = bins - item
+    valid_bins = residual_space >= 0
+    priorities = np.where(valid_bins, residual_space, -np.inf)
+    return priorities
+''',
+        'hybrid_fit': '''
+    """Returns priority with which we want to add item to each bin with Hybrid Fit strategy.
+
+    The Hybrid Fit strategy combines elements of Best Fit and Worst Fit to find a balance between 
+    minimizing space wastage and maximizing utilization. It prioritizes bins that can accommodate 
+    the item with the smallest residual space (Best Fit) but also considers bins that have the largest 
+    residual space after addition (Worst Fit) to avoid early bin exhaustion.
+
+    Args:
+        item: Size of item to be added to the bin.
+        bins: Array of capacities for each bin.
+
+    Return:
+        Array of same size as bins with priority score of each bin.
+    """
+    residual_space = bins - item
+    valid_bins = residual_space >= 0
+    
+    best_fit_scores = np.where(valid_bins, -residual_space, np.inf)
+    worst_fit_scores = np.where(valid_bins, residual_space, -np.inf)
+    
+    hybrid_scores = (best_fit_scores + worst_fit_scores) / 2
+    return hybrid_scores
+''',
+        'greedy': '''
+    """Returns priority with which we want to add item to each bin with Greedy strategy.
+
+    The Greedy strategy prioritizes bins based on their current utilization ratio.
+    It aims to maximize bin utilization while maintaining flexibility for future items.
+
+    Args:
+        item: Size of item to be added to the bin.
+        bins: Array of capacities for each bin.
+
+    Return:
+        Array of same size as bins with priority score of each bin.
+    """
+    utilization = item / bins
+    valid_bins = bins >= item
+    priorities = np.where(valid_bins, utilization, -np.inf)
+    return priorities
+'''
+    }
 
     def __init__(
             self,
@@ -78,13 +178,24 @@ class Sampler:
             evaluators: Sequence[evaluator.Evaluator],
             samples_per_prompt: int,
             max_sample_nums: int | None = None,
-            llm_class: Type[LLM] = LLM
+            llm_class: Type[LLM] = LLM,
+            predefined_function_prob: float = 0.15  # Probability of using predefined function
     ):
         self._samples_per_prompt = samples_per_prompt
         self._database = database
         self._evaluators = evaluators
         self._llm = llm_class(samples_per_prompt)
         self._max_sample_nums = max_sample_nums
+        self._predefined_function_prob = predefined_function_prob
+        random.seed(42)  # Set random seed for reproducibility
+
+    def _maybe_replace_with_predefined(self, sample: str) -> str:
+        """With small probability, replace the sample with a predefined function."""
+        if random.random() <= self._predefined_function_prob:
+            strategy = random.choice(list(self._predefined_functions.keys()))
+            print(f"Using predefined function: {strategy}")
+            return self._predefined_functions[strategy]
+        return sample
 
     def sample(self, **kwargs):
         """Continuously gets prompts, samples programs, sends them for analysis.
@@ -103,8 +214,12 @@ class Sampler:
                 self._global_sample_nums_plus_one()  # RZ: add _global_sample_nums
                 cur_global_sample_nums = self._get_global_sample_nums()
                 chosen_evaluator: evaluator.Evaluator = np.random.choice(self._evaluators)
+                
+                # Maybe replace sample with predefined function
+                modified_sample = self._maybe_replace_with_predefined(sample)
+                
                 chosen_evaluator.analyse(
-                    sample,
+                    modified_sample,
                     prompt.island_id,
                     prompt.version_generated,
                     **kwargs,

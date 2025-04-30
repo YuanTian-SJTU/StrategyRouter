@@ -102,6 +102,9 @@ class Profiler:
         function = self._all_sampled_functions[sample_orders]
         # function_name = function.name
         # function_body = function.body.strip('\n')
+        # 除原函数外，删除原始docstring
+        if sample_orders is not None:
+            function.docstring = ''
         function_str = str(function).strip('\n')
         sample_time = function.sample_time
         evaluate_time = function.evaluate_time

@@ -25,20 +25,21 @@ class StrategyTracker:
         code = code.lower()
         if "hybrid" in code:
             return "hybrid"
-        elif "first fit" in code:
+        elif "first" in code:
             return "first_fit"
-        elif "best fit" in code:
-            return "best_fit"
-        elif "worst fit" in code:
+        elif "worst" in code:
             return "worst_fit"
         elif "greedy" in code:
             return "greedy"
+        elif "best" in code:
+            return "best_fit"
         else:
             return "other"
     
     def update_score(self, code: str, score: float):
         """Update the score for a strategy."""
         strategy = self.classify_strategy(code)
+        print(f"Classified strategy: {strategy}")
         self._strategy_scores[strategy].append(score)
         self._strategy_examples[strategy].append(code)
         
