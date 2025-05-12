@@ -16,7 +16,10 @@ import json
 import multiprocessing
 from typing import Collection, Any
 import http.client
-from implementation import sampler
+import numpy as np
+
+with open('api_key.txt', 'r') as f:
+    api_key = f.read()
 
 scores_list = []
 strategy_scores = {}
@@ -107,7 +110,7 @@ class LLMAPI(sampler.LLM):
                     ]
                 })
                 headers = {
-                    'Authorization': 'Bearer sk-xxx',
+                    'Authorization': 'Bearer {}'.format(api_key),
                     'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
                     'Content-Type': 'application/json'
                 }
