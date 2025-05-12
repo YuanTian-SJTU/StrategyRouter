@@ -269,23 +269,36 @@ if __name__ == '__main__':
 
     # Right subplot: Strategy scores
     plt.subplot(1, 2, 2)
-    
+
     if not strategy_scores:
         print("Warning: No strategies were recorded!")
-    
-    # Define colors for different strategies
-    colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
-    for i, strategy in enumerate(strategy_scores):
-        color = colors[i % len(colors)]
-        scores = strategy_scores[strategy]
-        plt.plot(range(len(scores)), scores, f'{color}-', label=strategy)
-    
-    plt.title('Strategy Score Progression')
-    plt.xlabel('Sample')
-    plt.ylabel('Score')
-    plt.legend()
-    
+    else:
+        # Prepare data for the pie chart
+        strategies = list(strategy_scores.keys())
+        max_scores = [max(scores) if scores else -np.inf for scores in strategy_scores.values()]
+        samples = [len(scores) for scores in strategy_scores.values()]
+        total_score = sum(samples)
+
+        # 根据samples占比绘制饼图，在图例中标注每种策略的最高分
+        wedges, texts, autotexts = plt.pie(
+            samples,
+            labels=strategies,
+            autopct=lambda p: f'{p:.1f}%',
+            startangle=140,
+        )
+        for i, a in enumerate(autotexts):
+            a.set_text(f'{strategies[i]}: {max_scores[i]:.2f}, {samples[i]}')
+            a.set_color('black')
+            a.set_fontsize(10)
+        plt.setp(texts, size=10)
+        plt.setp(autotexts, size=10)
+        plt.axis('equal')
+        plt.title('Strategy Score Distribution (Best Score, Sample Count)')
+        plt.legend()
+
     plt.tight_layout()
+    # 保存图片
+    plt.savefig('strategy_scores.png')
     plt.show()
 
     # Print final strategy statistics
@@ -296,6 +309,6 @@ if __name__ == '__main__':
         if scores:
             print(f"{strategy}:")
             print(f"  Best Score: {max(scores):.2f}")
-            print(f"  Average Score: {sum(scores)/len(scores):.2f}")
+            print(f"  Average Score: {sum(scores) / len(scores):.2f}")
             print(f"  Number of Attempts: {len(scores)}")
             print("-" * 50)
