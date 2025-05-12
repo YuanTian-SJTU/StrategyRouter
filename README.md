@@ -18,8 +18,8 @@
 
 本项目包含以下独立目录：
 
-* `bin_packing` - 包含装箱任务的示例 Jupyter notebook
-* `implementation` - 包含进化算法、代码操作例程和 FunSearch 流程的单线程实现
+* `bin_packing` - 包含装箱任务基本实现程序`spec.py`。在应用于其他问题时，**应替换为对应问题的基本实现程序**。（基本实现程序是指，针对该问题的**可执行的、模块化的**程序内容，已经具有**独立的待优化函数**和可**执行的评估函数**）
+* `implementation` - 包含 Funsearch 流程中各环节的代码，如`sampler`、`evaluator`、`program_database`等。
 * `llm-server` - 包含 LLM 服务器的实现，通过监控来自 FunSearch 的请求获取提示，并将推理结果响应给 FunSearch 算法
 
 ## `funsearch/implementation` 中的文件
@@ -34,6 +34,7 @@
 * `profile.py` - 记录采样函数的得分
 * `programs_database.py` - 进化采样函数
 * `sampler.py` - 向 LLM 发送提示并获取结果
+* `strategy_tracker` - 用于分类和引导 LLM 基于多样的策略生成函数
 
 ## 在本地运行 FunSearch 演示
 
@@ -42,6 +43,12 @@
 如果要调整以下参数，应手动修改 `funsearch/implementation` 中的代码。
 
 * `_reduce_score` - 此函数对某些实例中采样函数的分数进行降维。默认实现为 _mean_。您可以在 `implementation/program_database.py` 中修改它，在那里您可以找到 '\_reduce\_score' 函数。
+* `_functions_per_prompt` - 在每一轮的提示词中展示的过往函数的数量，默认值为2，在`implementation/config.py` 中修改。
+* `num_islands` - 聚类的岛屿数量，默认值为10，在 `implementation/config.py` 中修改。
+* `num_samplers` - 采样器的数量，默认值为1，在 `implementation/config.py` 中修改，当程序并行执行时例如在分布式系统中运行时，您可以将其设置为大于1的值。
+* `num_evaluators` - 评估器的数量，默认值为1，在 `implementation/config.py` 中修改，当程序并行执行时例如在分布式系统中运行时，您可以将其设置为大于1的值。
+* `reset_period` - 在程序池中，表现最差的聚类被重置的周期（单位为秒），在 `implementation/config.py` 中修改。
+* `samples_per_prompt` - 每个提示词生成的独立的样本数量，默认值为4，在 `implementation/config.py` 中修改。
 
 ### 使用本地 LLM
 
@@ -71,17 +78,27 @@ tensorboard --logdir funsearch_local_llm
 
 ### 使用 LLM 接口
 
-1. 根据您的 API 提供商设置 API 的 IP 地址。代码在 `funsearch_bin_packing_llm_api.py` 第 33 行。
+1. 根据您的 API 提供商设置 API 的 IP 地址和正确的模型。代码在 `funsearch_bin_packing_llm_api.py` 第 98 - 108 行。
 
 ```python
-conn = http.client.HTTPSConnection("api.chatanywhere.com.cn")
+conn = http.client.HTTPSConnection("YOUR API SE RVER IP")
+payload = json.dumps({
+    "max_tokens": 512,
+    "model": "YOUR MODEL NAME",
+    "messages": [
+        {
+            "role": "user",
+            "content": prompt
+        }
+    ]
+})
 ```
 
-2. 在请求头中设置 API 密钥，代码位于 `funsearch_bin_packing_llm_api.py` 第 44-48 行。您应该将 `sk-ys...` 替换为您的 API 密钥。
+2. 在请求头中设置 API 密钥，代码位于 `funsearch_bin_packing_llm_api.py` 第 109 - 113 行。您应该将 `sk-...` 替换为您的 API 密钥。
 
 ```python
 headers = {
-  'Authorization': 'Bearer sk-ys02zx...(替换为您的 API 密钥)...',
+  'Authorization': 'Bearer sk-YOUR_API_KEY',
   'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
   'Content-Type': 'application/json'
 }
