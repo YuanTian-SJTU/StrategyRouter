@@ -3,6 +3,7 @@ import multiprocessing
 from typing import Collection, Any
 from matplotlib import pyplot as plt
 import http.client
+
 from implementation import funsearch
 from implementation import config
 from implementation import sampler
@@ -85,15 +86,30 @@ class LLMAPI(sampler.LLM):
                 strategy_prompt += (f"{strategy}: Unknown"
                                     f"\n")
 
-        additional_prompt = (
-            'Complete a different and more complex Python function. '
-            'Be creative and you can implement various strategies like First Fit, Best Fit, Worst Fit, or Greedy approaches. '
-            'You can also combine multiple strategies or create new ones. '
-            'Only output the Python code, no descriptions.'
-            'In the function docstring, clearly state which strategy you are using.'
-            f'Current strategy scores:\n {strategy_prompt}'
-        )
+        if np.random.random() <= 0.15:
+            strategy = np.random.choice(['First Fit', 'Best Fit', 'Worst Fit', 'Greedy'])
+        else:
+            strategy = None
+
+        if strategy is not None:
+            additional_prompt = (
+                'Complete a different and more complex Python function. '
+                f'You are highly recommended to use {strategy} strategy. '
+                'Only output the Python code, no descriptions.'
+                'In the function docstring, clearly state which strategy you are using.'
+            )
+        else:
+            additional_prompt = (
+                'Complete a different and more complex Python function. '
+                'Be creative and you can implement various strategies like First Fit, Best Fit, Worst Fit, or Greedy approaches. '
+                'You can also combine multiple strategies or create new ones. '
+                'Only output the Python code, no descriptions.'
+                'In the function docstring, clearly state which strategy you are using.'
+                f'Current strategy scores:\n {strategy_prompt}'
+            )
         prompt = '\n'.join([content, additional_prompt])
+
+        print(prompt)
         
         while True:
             # 连接API信息

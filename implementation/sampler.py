@@ -179,23 +179,13 @@ class Sampler:
             samples_per_prompt: int,
             max_sample_nums: int | None = None,
             llm_class: Type[LLM] = LLM,
-            predefined_function_prob: float = 0.15  # Probability of using predefined function
     ):
         self._samples_per_prompt = samples_per_prompt
         self._database = database
         self._evaluators = evaluators
         self._llm = llm_class(samples_per_prompt)
         self._max_sample_nums = max_sample_nums
-        self._predefined_function_prob = predefined_function_prob
         random.seed(42)  # Set random seed for reproducibility
-
-    def _maybe_replace_with_predefined(self, sample: str) -> str:
-        """With small probability, replace the sample with a predefined function."""
-        if random.random() <= self._predefined_function_prob:
-            strategy = random.choice(list(self._predefined_functions.keys()))
-            print(f"Using predefined function: {strategy}")
-            return self._predefined_functions[strategy]
-        return sample
 
     def sample(self, **kwargs):
         """Continuously gets prompts, samples programs, sends them for analysis.
@@ -215,11 +205,8 @@ class Sampler:
                 cur_global_sample_nums = self._get_global_sample_nums()
                 chosen_evaluator: evaluator.Evaluator = np.random.choice(self._evaluators)
                 
-                # Maybe replace sample with predefined function
-                modified_sample = self._maybe_replace_with_predefined(sample)
-                
                 chosen_evaluator.analyse(
-                    modified_sample,
+                    sample,
                     prompt.island_id,
                     prompt.version_generated,
                     **kwargs,
