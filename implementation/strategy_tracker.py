@@ -54,15 +54,3 @@ class StrategyTracker:
         self._round += 1
 
         return self._strategy_scores
-    
-    def _get_strategy_prompt(self) -> str:
-        """Generate a prompt section about strategy performance."""
-        if not self._strategy_scores:
-            return ""
-        
-        prompt = "\nStrategy Performance History:\n"
-        for strategy, scores in self._strategy_scores.items():
-            avg_score = sum(scores) / len(scores)
-            max_score = max(scores)
-            prompt += f"- {strategy}: Average Score = {avg_score:.2f}, Best Score = {max_score:.2f}\n"
-        return prompt

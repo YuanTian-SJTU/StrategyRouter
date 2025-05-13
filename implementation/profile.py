@@ -11,6 +11,21 @@ from implementation import code_manipulation
 from torch.utils.tensorboard import SummaryWriter
 
 
+def classify_strategy(code: str) -> str:
+    """Classify the strategy used in the code."""
+    code = code.lower()
+    if "hybrid" in code:
+        return "hybrid"
+    elif "first" in code:
+        return "first_fit"
+    elif "worst" in code:
+        return "worst_fit"
+    elif "greedy" in code:
+        return "greedy"
+    elif "best" in code:
+        return "best_fit"
+    else:
+        return "other"
 
 class Profiler:
     def __init__(
@@ -73,14 +88,17 @@ class Profiler:
         )
 
     def _write_json(self, programs: code_manipulation.Function):
+        """将生成的程序写入到json文件中"""
         sample_order = programs.global_sample_nums
         sample_order = sample_order if sample_order is not None else 0
         function_str = str(programs)
+        strategy = classify_strategy(function_str)
         score = programs.score
         content = {
             'sample_order': sample_order,
+            'strategy': strategy,
             'function': function_str,
-            'score': score
+            'score': score,
         }
         path = os.path.join(self._json_dir, f'samples_{sample_order}.json')
         with open(path, 'w') as json_file:

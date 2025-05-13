@@ -23,7 +23,14 @@ with open('api_key.txt', 'r') as f:
     api_key = f.read()
 
 scores_list = []
-strategy_scores = {}
+strategy_scores = {
+    "hybrid": [],
+    "first_fit": [],
+    "best_fit": [],
+    "worst_fit": [],
+    "greedy": [],
+    "other": []
+}
 
 def _trim_preface_of_body(sample: str) -> str:
     """Trim the redundant descriptions/symbols/'def' declaration before the function body.
@@ -83,8 +90,7 @@ class LLMAPI(sampler.LLM):
                 score = max(scores)
                 strategy_prompt += f"{strategy}: Best score {score:.2f}\n"
             else:
-                strategy_prompt += (f"{strategy}: Unknown"
-                                    f"\n")
+                strategy_prompt += f"{strategy}: Unknown\n"
 
         if np.random.random() <= 0.15:
             strategy = np.random.choice(['First Fit', 'Best Fit', 'Worst Fit', 'Greedy'])
@@ -109,7 +115,7 @@ class LLMAPI(sampler.LLM):
             )
         prompt = '\n'.join([content, additional_prompt])
 
-        print(prompt)
+        # print(prompt)
         
         while True:
             # 连接API信息
