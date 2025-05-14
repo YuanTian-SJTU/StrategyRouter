@@ -109,7 +109,7 @@ class LLMAPI(sampler.LLM):
                 strategy_prompt += f"{strategy}: Best score {score:.2f}\n"
             else:
                 strategy_prompt += f"{strategy}: Unknown\n"
-        trigger_probability = np.exp(-len(overall_best) / 20)  # 触发概率指数缩减
+        trigger_probability = 0.3 * np.exp(-len(overall_best) / 20)  # 触发概率指数缩减
         if np.random.rand() < trigger_probability:
             strategy = np.random.choice(['First Fit', 'Best Fit', 'Worst Fit', 'Greedy'])
             global fixed_count
