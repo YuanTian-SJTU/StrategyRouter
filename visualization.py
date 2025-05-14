@@ -491,7 +491,7 @@ def generate_all_visualizations(scores_list, strategy_scores, save_dir='visualiz
 # 示例用法
 if __name__ == "__main__":
     # 从funsearch_bin_packing_llm_api.py导入数据
-    from funsearch_bin_packing_llm_api import scores_list, strategy_scores
+    from funsearch_bin_packing_llm_api import overall_best, strategy_scores
     
     # 生成所有可视化图表
-    generate_all_visualizations(scores_list, strategy_scores)
+    generate_all_visualizations(overall_best, strategy_scores)

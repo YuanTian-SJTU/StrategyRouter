@@ -90,7 +90,7 @@ def run_funsearch_with_visualization(dataset_name='OR3',
     print(f"总运行时间: {run_time:.2f}秒 ({run_time/60:.2f}分钟)")
     
     # 从LLMAPI和Sandbox中获取记录的分数
-    from funsearch_bin_packing_llm_api import scores_list, strategy_scores
+    from funsearch_bin_packing_llm_api import overall_best, strategy_scores
     
     # 打印最终策略统计信息
     print("\n最终策略统计信息:")
@@ -109,10 +109,10 @@ def run_funsearch_with_visualization(dataset_name='OR3',
         visualization_dir = f'logs/visualization_{timestamp}'
     
     print(f"\n正在生成可视化结果...")
-    generate_all_visualizations(scores_list, strategy_scores, save_dir=visualization_dir)
+    generate_all_visualizations(overall_best, strategy_scores, save_dir=visualization_dir)
     print(f"可视化结果已保存至: {visualization_dir}")
     
-    return scores_list, strategy_scores, visualization_dir
+    return overall_best, strategy_scores, visualization_dir
 
 
 if __name__ == "__main__":

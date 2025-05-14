@@ -8,7 +8,7 @@ def generate_sample_data():
     """Generate sample data for testing visualization module
     
     Returns:
-        tuple: (scores_list, strategy_scores) containing overall score list and strategy score dictionary
+        tuple: (overall_best, strategy_scores) containing overall score list and strategy score dictionary
     """
     # Simulate overall score list
     np.random.seed(42)  # Set random seed to ensure reproducible results
@@ -122,12 +122,12 @@ def demo_real_data_visualization():
     """Try to visualize using real data (if available)"""
     try:
         # Try to import data from funsearch_bin_packing_llm_api.py
-        from funsearch_bin_packing_llm_api import scores_list, strategy_scores
+        from funsearch_bin_packing_llm_api import overall_best, strategy_scores
         
         # Check if data is valid
-        if scores_list and any(scores for scores in strategy_scores.values()):
+        if overall_best and any(scores for scores in strategy_scores.values()):
             print("\nGenerating visualization charts using real data")
-            generate_all_visualizations(scores_list, strategy_scores, save_dir='visualization_real_data')
+            generate_all_visualizations(overall_best, strategy_scores, save_dir='visualization_real_data')
         else:
             print("\nInsufficient real data, unable to generate visualization charts")
             print("Please run funsearch_bin_packing_llm_api.py to generate data first")

@@ -25,7 +25,9 @@ with open('api_key.txt', 'r') as f:
     api_key = f.read()
 
 # 记录分数
-scores_list = []
+overall_best = []
+local_best = []
+strategy_list = []
 # 记录不同策略的分数
 strategy_scores = {
     "Hybrid": [],
@@ -37,7 +39,7 @@ strategy_scores = {
 }
 
 # 使用给定策略的概率
-pb = 0.15
+# pb = 0.8
 # 使用给定策略的次数
 fixed_count = {
     'First Fit': 0,
@@ -107,8 +109,8 @@ class LLMAPI(sampler.LLM):
                 strategy_prompt += f"{strategy}: Best score {score:.2f}\n"
             else:
                 strategy_prompt += f"{strategy}: Unknown\n"
-        # 随机触发使用固定策略生成函数
-        if np.random.random() <= pb:
+        trigger_probability = np.exp(-len(overall_best) / 20)  # 触发概率指数缩减
+        if np.random.rand() < trigger_probability:
             strategy = np.random.choice(['First Fit', 'Best Fit', 'Worst Fit', 'Greedy'])
             global fixed_count
             fixed_count[strategy] += 1
@@ -232,16 +234,19 @@ class Sandbox(evaluator.Sandbox):
         global strategy_scores  # 显式声明为全局变量
         if results[0] is not None:  # 如果分数不为空
             # 分数列表
-            if not scores_list: # 如果分数列表为空，直接添加当前分数
-                scores_list.append(results[0])
+            if not overall_best: # 如果分数列表为空，直接添加当前分数
+                overall_best.append(results[0])
             else:   # 如果分数列表不为空，添加当前分数和列表中上一分数更高的一个
-                scores_list.append(max(scores_list[-1], results[0]))
-
+                overall_best.append(max(overall_best[-1], results[0]))
+            local_best.append(results[0])
             # 策略分数
-            strategy_scores = self._strategy_tracker.update_score(program, results[0])
+            strategy_scores, stg = self._strategy_tracker.update_score(program, results[0])
+            strategy_list.append(stg)
         else:
-            scores_list.append(scores_list[-1])
-            strategy_scores = self._strategy_tracker.update_score(program, -float('inf'))
+            overall_best.append(overall_best[-1])
+            local_best.append(-float('inf'))
+            strategy_scores, stg = self._strategy_tracker.update_score(program, -float('inf'))
+            strategy_list.append(stg)
             global failed_count
             failed_count += 1
 
@@ -283,7 +288,7 @@ if __name__ == '__main__':
     config = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
 
     bin_packing_or3 = {'OR3': bin_packing_utils.datasets['OR3']}
-    global_max_sample_num = 50 * 4  # n * m, n is total number of rounds and m is the number of samplers
+    global_max_sample_num = 100 * 4  # n * m, n is total number of rounds and m is the number of samplers
     
     print("\nStarting FunSearch with strategy tracking...")
     # 开始时间
@@ -307,11 +312,11 @@ if __name__ == '__main__':
     
     # Left subplot: Overall score
     plt.subplot(1, 2, 1)
-    if scores_list:
-        max_score_index = scores_list.index(max(scores_list))
-        plt.plot(range(len(scores_list)), scores_list, 'b-', label='Overall Score')
-        plt.scatter(max_score_index, scores_list[max_score_index], color='red', 
-                   label=f'Max Score ({max_score_index}, {scores_list[max_score_index]:.2f})')
+    if overall_best:
+        max_score_index = overall_best.index(max(overall_best))
+        plt.plot(range(len(overall_best)), overall_best, 'b-', label='Overall Score')
+        plt.scatter(max_score_index, overall_best[max_score_index], color='red',
+                    label=f'Max Score ({max_score_index}, {overall_best[max_score_index]:.2f})')
     plt.title('Overall Score Progression')
     plt.xlabel('Sample Number')
     plt.ylabel('Score')
@@ -370,8 +375,14 @@ if __name__ == '__main__':
 
     print("=" * 50)
     print("Summary:\n")
-    print(f"Total Samples: {len(scores_list)}")
-    print(f"Best Overall Score: {max(scores_list):.2f}")
-    print(f"Best Overall Attempt: {scores_list.index(max(scores_list))}")
-    print(f"Total Failed Attempts: {failed_count} ({failed_count / len(scores_list) * 100:.2f}%)")
-    print(f"Total Time: {run_time:.2f} seconds ({run_time / len(scores_list):.2f} seconds per attempt on average)")
+    print(f"Total Samples: {len(overall_best)}")
+    print(f"Best Overall Score: {max(overall_best):.2f}")
+    print(f"Best Overall Attempt: {overall_best.index(max(overall_best))}")
+    print(f"Total Failed Attempts: {failed_count} ({failed_count / len(overall_best) * 100:.2f}%)")
+    print(f"Total Time: {run_time:.2f} seconds ({run_time / len(overall_best):.2f} seconds per attempt on average)")
+
+    # 保存分数到csv
+    with open('StrategyRouterData.csv', 'w') as f:
+        f.write('Sample Number, Overall Best, Local, Strategy\n')
+        for i, score in enumerate(overall_best):
+            f.write(f'{i}, {score}, {local_best[i]}, {strategy_list[i]}\n')

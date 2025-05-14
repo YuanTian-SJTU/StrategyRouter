@@ -36,7 +36,7 @@ class StrategyTracker:
         else:
             return "Other"
     
-    def update_score(self, code: str, score: float) -> dict:
+    def update_score(self, code: str, score: float) -> [dict, str]:
         """Update the score for a strategy."""
         strategy = self.classify_strategy(code)
         print(f"Classified strategy: {strategy}")
@@ -53,4 +53,4 @@ class StrategyTracker:
         print('\n')
         self._round += 1
 
-        return self._strategy_scores
+        return self._strategy_scores, strategy
