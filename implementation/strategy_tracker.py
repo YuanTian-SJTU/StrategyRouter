@@ -1,20 +1,20 @@
 class StrategyTracker:
     def __init__(self):
         self._strategy_scores: dict = {
-            "hybrid": [],
-            "first_fit": [],
-            "best_fit": [],
-            "worst_fit": [],
-            "greedy": [],
-            "other": []
+            "Hybrid": [],
+            "First Fit": [],
+            "Best Fit": [],
+            "Worst Fit": [],
+            "Greedy": [],
+            "Other": []
         }
         self._strategy_examples: dict = {
-            "hybrid": [],
-            "first_fit": [],
-            "best_fit": [],
-            "worst_fit": [],
-            "greedy": [],
-            "other": []
+            "Hybrid": [],
+            "First Fit": [],
+            "Best Fit": [],
+            "Worst Fit": [],
+            "Greedy": [],
+            "Other": []
         }
         self._round = 0
         self._scores_history: list[dict[str, float]] = []
@@ -24,19 +24,19 @@ class StrategyTracker:
         """Classify the strategy used in the code."""
         code = code.lower()
         if "hybrid" in code:
-            return "hybrid"
-        elif "first" in code:
-            return "first_fit"
+            return "Hybrid"
         elif "worst" in code:
-            return "worst_fit"
-        elif "greedy" in code:
-            return "greedy"
+            return "Worst Fit"
         elif "best" in code:
-            return "best_fit"
+            return "Best Fit"
+        elif "first" in code:
+            return "First Fit"
+        elif "greedy" in code:
+            return "Greedy"
         else:
-            return "other"
+            return "Other"
     
-    def update_score(self, code: str, score: float):
+    def update_score(self, code: str, score: float) -> dict:
         """Update the score for a strategy."""
         strategy = self.classify_strategy(code)
         print(f"Classified strategy: {strategy}")

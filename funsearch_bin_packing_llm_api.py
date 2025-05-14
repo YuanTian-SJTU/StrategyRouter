@@ -18,19 +18,35 @@ import multiprocessing
 from typing import Collection, Any
 import http.client
 import numpy as np
+import time
 
+# 读取API密钥
 with open('api_key.txt', 'r') as f:
     api_key = f.read()
 
+# 记录分数
 scores_list = []
+# 记录不同策略的分数
 strategy_scores = {
-    "hybrid": [],
-    "first_fit": [],
-    "best_fit": [],
-    "worst_fit": [],
-    "greedy": [],
-    "other": []
+    "Hybrid": [],
+    "First Fit": [],
+    "Best Fit": [],
+    "Worst Fit": [],
+    "Greedy": [],
+    "Other": []
 }
+
+# 使用给定策略的概率
+pb = 0.15
+# 使用给定策略的次数
+fixed_count = {
+    'First Fit': 0,
+    'Best Fit': 0,
+    'Worst Fit': 0,
+    'Greedy': 0
+}
+# 错误函数数量
+failed_count = 0
 
 def _trim_preface_of_body(sample: str) -> str:
     """Trim the redundant descriptions/symbols/'def' declaration before the function body.
@@ -91,16 +107,18 @@ class LLMAPI(sampler.LLM):
                 strategy_prompt += f"{strategy}: Best score {score:.2f}\n"
             else:
                 strategy_prompt += f"{strategy}: Unknown\n"
-
-        if np.random.random() <= 0.15:
+        # 随机触发使用固定策略生成函数
+        if np.random.random() <= pb:
             strategy = np.random.choice(['First Fit', 'Best Fit', 'Worst Fit', 'Greedy'])
+            global fixed_count
+            fixed_count[strategy] += 1
         else:
             strategy = None
 
         if strategy is not None:
             additional_prompt = (
                 'Complete a different and more complex Python function. '
-                f'You are highly recommended to use {strategy} strategy. '
+                f'You are strongly recommended to use {strategy} strategy. '
                 'Only output the Python code, no descriptions.'
                 'In the function docstring, clearly state which strategy you are using.'
             )
@@ -216,7 +234,7 @@ class Sandbox(evaluator.Sandbox):
             # 分数列表
             if not scores_list: # 如果分数列表为空，直接添加当前分数
                 scores_list.append(results[0])
-            else:   # 如果分数列表为空，添加当前分数和列表中上一分数更高的一个
+            else:   # 如果分数列表不为空，添加当前分数和列表中上一分数更高的一个
                 scores_list.append(max(scores_list[-1], results[0]))
 
             # 策略分数
@@ -224,6 +242,8 @@ class Sandbox(evaluator.Sandbox):
         else:
             scores_list.append(scores_list[-1])
             strategy_scores = self._strategy_tracker.update_score(program, -float('inf'))
+            global failed_count
+            failed_count += 1
 
         return results
 
@@ -263,9 +283,11 @@ if __name__ == '__main__':
     config = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
 
     bin_packing_or3 = {'OR3': bin_packing_utils.datasets['OR3']}
-    global_max_sample_num = 3 * 4  # n * m, n is total number of rounds and m is the number of samplers
+    global_max_sample_num = 50 * 4  # n * m, n is total number of rounds and m is the number of samplers
     
     print("\nStarting FunSearch with strategy tracking...")
+    # 开始时间
+    start_time = time.time()
     funsearch.main(
         specification=specification,
         inputs=bin_packing_or3,
@@ -274,6 +296,10 @@ if __name__ == '__main__':
         class_config=class_config,
         log_dir='logs/funsearch_llm_api',
     )
+    # 结束时间
+    end_time = time.time()
+    # 计算运行时间
+    run_time = end_time - start_time
 
     print("\nGenerating plots...")
     # Plot overall score progression
@@ -331,9 +357,21 @@ if __name__ == '__main__':
     print("=" * 50)
     for strategy in strategy_scores:
         scores = strategy_scores[strategy]
+
         if scores:
             print(f"{strategy}:")
             print(f"  Best Score: {max(scores):.2f}")
+            print(f"  Best Attempt: {scores.index(max(scores))}")
             print(f"  Average Score: {sum(scores) / len(scores):.2f}")
-            print(f"  Number of Attempts: {len(scores)}")
+            print(f"  Number of Total Attempts: {len(scores)}")
+            if strategy in fixed_count:
+                print(f"  Number of Attempts with Fixed Strategy: {fixed_count[strategy]}")  # 打印固定策略的次数
             print("-" * 50)
+
+    print("=" * 50)
+    print("Summary:\n")
+    print(f"Total Samples: {len(scores_list)}")
+    print(f"Best Overall Score: {max(scores_list):.2f}")
+    print(f"Best Overall Attempt: {scores_list.index(max(scores_list))}")
+    print(f"Total Failed Attempts: {failed_count} ({failed_count / len(scores_list) * 100:.2f}%)")
+    print(f"Total Time: {run_time:.2f} seconds ({run_time / len(scores_list):.2f} seconds per attempt on average)")
