@@ -34,21 +34,28 @@ strategy_scores = {
     "First Fit": [],
     "Best Fit": [],
     "Worst Fit": [],
-    "Greedy": [],
+    "Next Fit": [],
+    "Harmonic": [],
     "Other": []
 }
-
+selectable_strategies = ["First Fit", "Best Fit", "Worst Fit", "Next Fit", "Harmonic"]
 # 使用给定策略的概率
-# pb = 0.8
+current_trigger_probability = 0.0  # 初始触发概率
+trigger_probability_history = []  # 记录触发概率历史
 # 使用给定策略的次数
 fixed_count = {
     'First Fit': 0,
     'Best Fit': 0,
     'Worst Fit': 0,
-    'Greedy': 0
+    "Next Fit": 0,
+    "Harmonic": 0,
 }
 # 错误函数数量
-failed_count = 0
+failed_count = []
+round_count = 0
+np.random.seed(10)
+pb_list = np.random.random(400)
+
 
 def _trim_preface_of_body(sample: str) -> str:
     """Trim the redundant descriptions/symbols/'def' declaration before the function body.
@@ -101,7 +108,7 @@ class LLMAPI(sampler.LLM):
 
     def _draw_sample(self, content: str) -> str:
         # 提取策略分
-        global strategy_scores
+        global strategy_scores, round_count, current_trigger_probability, trigger_probability_history, fixed_count
         strategy_prompt = ''
         for strategy, scores in strategy_scores.items():
             if scores:
@@ -109,10 +116,26 @@ class LLMAPI(sampler.LLM):
                 strategy_prompt += f"{strategy}: Best score {score:.2f}\n"
             else:
                 strategy_prompt += f"{strategy}: Unknown\n"
-        trigger_probability = 0.3 * np.exp(-len(overall_best) / 20)  # 触发概率指数缩减
-        if np.random.rand() < trigger_probability:
-            strategy = np.random.choice(['First Fit', 'Best Fit', 'Worst Fit', 'Greedy'])
-            global fixed_count
+        
+        # 动态调整触发概率
+        if round_count > 0:
+            if overall_best[-1] != local_best[-1]:
+                current_trigger_probability = min(1.0, current_trigger_probability + 0.1)  # 增加触发概率
+            else:
+                current_trigger_probability = 0.0  # 重置触发概率
+        trigger_probability_history.append(current_trigger_probability)
+        
+        if pb_list[round_count] < current_trigger_probability:
+            # 根据fixed_count动态调整策略选择概率
+            total_count = sum(fixed_count.values())
+            if total_count > 0:
+                # 计算每个策略的权重（使用次数的倒数）
+                weights = [1 / (fixed_count[strategy] + 1) for strategy in selectable_strategies]
+                # 归一化权重
+                weights = np.array(weights) / sum(weights)
+                strategy = np.random.choice(selectable_strategies, p=weights)
+            else:
+                strategy = np.random.choice(selectable_strategies)
             fixed_count[strategy] += 1
         else:
             strategy = None
@@ -127,13 +150,14 @@ class LLMAPI(sampler.LLM):
         else:
             additional_prompt = (
                 'Complete a different and more complex Python function. '
-                'Be creative and you can implement various strategies like First Fit, Best Fit, Worst Fit, or Greedy approaches. '
+                'Be creative and you can implement various strategies like First Fit, Best Fit, Worst Fit, Next Fit or Harmonic approaches. '
                 'You can also combine multiple strategies or create new ones. '
                 'Only output the Python code, no descriptions.'
                 'In the function docstring, clearly state which strategy you are using.'
                 f'Current strategy scores:\n {strategy_prompt}'
             )
         prompt = '\n'.join([content, additional_prompt])
+        round_count += 1
 
         # print(prompt)
         
@@ -231,7 +255,7 @@ class Sandbox(evaluator.Sandbox):
             print(f'\n')
         
         # 记录当前最高分和策略分数
-        global strategy_scores  # 显式声明为全局变量
+        global strategy_scores, failed_count  # 显式声明为全局变量
         if results[0] is not None:  # 如果分数不为空
             # 分数列表
             if not overall_best: # 如果分数列表为空，直接添加当前分数
@@ -242,13 +266,15 @@ class Sandbox(evaluator.Sandbox):
             # 策略分数
             strategy_scores, stg = self._strategy_tracker.update_score(program, results[0])
             strategy_list.append(stg)
+            # 记录一个正确函数
+            failed_count.append(0)
         else:
             overall_best.append(overall_best[-1])
             local_best.append(-float('inf'))
             strategy_scores, stg = self._strategy_tracker.update_score(program, -float('inf'))
             strategy_list.append(stg)
-            global failed_count
-            failed_count += 1
+            # 记录一个错误函数
+            failed_count.append(1)
 
         return results
 
@@ -308,10 +334,10 @@ if __name__ == '__main__':
 
     print("\nGenerating plots...")
     # Plot overall score progression
-    plt.figure(figsize=(15, 6))
+    plt.figure(figsize=(20, 16))
     
-    # Left subplot: Overall score
-    plt.subplot(1, 2, 1)
+    # First subplot: Overall score (top left)
+    plt.subplot(2, 2, 1)
     if overall_best:
         max_score_index = overall_best.index(max(overall_best))
         plt.plot(range(len(overall_best)), overall_best, 'b-', label='Overall Score')
@@ -321,10 +347,47 @@ if __name__ == '__main__':
     plt.xlabel('Sample Number')
     plt.ylabel('Score')
     plt.legend()
-    plt.grid(True)
+    plt.grid(False)
 
-    # Right subplot: Strategy scores
-    plt.subplot(1, 2, 2)
+    # Second subplot: Trigger probability and pb_list (top right)
+    plt.subplot(2, 2, 2)
+    plt.plot(range(len(trigger_probability_history)), trigger_probability_history, 'g-', label='Trigger Probability')
+    plt.plot(range(len(pb_list[:len(trigger_probability_history)])), pb_list[:len(trigger_probability_history)], 'r--', label='Random Threshold')
+    plt.title('Trigger Probability and Random Threshold')
+    plt.xlabel('Sample Number')
+    plt.ylabel('Probability')
+    plt.legend()
+    plt.grid(False)
+
+    # Third subplot: Failed count statistics (bottom left)
+    plt.subplot(2, 2, 3)
+    failed_list = []
+    failed_ratios = []
+    for i in range(len(failed_count)):
+        failed_list.append(sum(failed_count[:i+1]))
+        failed_ratios.append(failed_list[-1] / len(failed_list) * 100)
+    
+    ax1 = plt.gca()
+    ax2 = ax1.twinx()
+    
+    ax1.plot(range(len(failed_list)), failed_list, 'b-', label='Failed Count')
+    ax2.plot(range(len(failed_ratios)), failed_ratios, 'r-', label='Failed Ratio (%)')
+    
+    ax1.set_xlabel('Sample Number')
+    ax1.set_ylabel('Failed Count', color='b')
+    ax2.set_ylabel('Failed Ratio (%)', color='r')
+    
+    ax1.tick_params(axis='y', labelcolor='b')
+    ax2.tick_params(axis='y', labelcolor='r')
+    
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+    plt.title('Failed Attempts Statistics')
+    plt.grid(False)
+
+    # Fourth subplot: Strategy scores (bottom right)
+    plt.subplot(2, 2, 4)
 
     if not strategy_scores:
         print("Warning: No strategies were recorded!")
@@ -378,7 +441,7 @@ if __name__ == '__main__':
     print(f"Total Samples: {len(overall_best)}")
     print(f"Best Overall Score: {max(overall_best):.2f}")
     print(f"Best Overall Attempt: {overall_best.index(max(overall_best))}")
-    print(f"Total Failed Attempts: {failed_count} ({failed_count / len(overall_best) * 100:.2f}%)")
+    print(f"Total Failed Attempts: {failed_list[-1]} ({failed_ratios[-1]:.2f}%)")
     print(f"Total Time: {run_time:.2f} seconds ({run_time / len(overall_best):.2f} seconds per attempt on average)")
 
     # 保存分数到csv

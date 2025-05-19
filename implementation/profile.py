@@ -14,18 +14,20 @@ from torch.utils.tensorboard import SummaryWriter
 def classify_strategy(code: str) -> str:
     """Classify the strategy used in the code."""
     code = code.lower()
-    if "hybrid" in code:
-        return "hybrid"
-    elif "first" in code:
-        return "first_fit"
-    elif "worst" in code:
-        return "worst_fit"
-    elif "greedy" in code:
-        return "greedy"
-    elif "best" in code:
-        return "best_fit"
+    if "hybrid" in code or "combin" in code:    # "combin" for combine, combined and combination:
+        return "Hybrid"
+    elif "harmonic" in code:
+        return "Harmonic"
+    elif "worst fit" in code:
+        return "Worst Fit"
+    elif "next fit" in code:
+        return "Next Fit"
+    elif "best fit" in code:
+        return "Best Fit"
+    elif "first fit" in code:
+        return "First Fit"
     else:
-        return "other"
+        return "Other"
 
 class Profiler:
     def __init__(

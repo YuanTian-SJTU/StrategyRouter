@@ -5,7 +5,8 @@ class StrategyTracker:
             "First Fit": [],
             "Best Fit": [],
             "Worst Fit": [],
-            "Greedy": [],
+            "Next Fit": [],
+            "Harmonic": [],
             "Other": []
         }
         self._strategy_examples: dict = {
@@ -13,7 +14,8 @@ class StrategyTracker:
             "First Fit": [],
             "Best Fit": [],
             "Worst Fit": [],
-            "Greedy": [],
+            "Next Fit": [],
+            "Harmonic": [],
             "Other": []
         }
         self._round = 0
@@ -23,16 +25,18 @@ class StrategyTracker:
     def classify_strategy(self, code: str) -> str:
         """Classify the strategy used in the code."""
         code = code.lower()
-        if "hybrid" in code:
+        if "hybrid" in code or "combin" in code:    # "combin" for combine, combined and combination
             return "Hybrid"
-        elif "worst" in code:
+        elif "harmonic" in code:
+            return "Harmonic"
+        elif "worst fit" in code:
             return "Worst Fit"
-        elif "best" in code:
+        elif "next fit" in code:
+            return "Next Fit"
+        elif "best fit" in code:
             return "Best Fit"
-        elif "first" in code:
+        elif "first fit" in code:
             return "First Fit"
-        elif "greedy" in code:
-            return "Greedy"
         else:
             return "Other"
     
