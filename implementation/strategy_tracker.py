@@ -1,23 +1,18 @@
+from tsp.config_tsp import STRATEGY_KEYWORDS, STRATEGIES
+
 class StrategyTracker:
     def __init__(self):
         self._strategy_scores: dict = {
             "Hybrid": [],
-            "First Fit": [],
-            "Best Fit": [],
-            "Worst Fit": [],
-            "Next Fit": [],
-            "Harmonic": [],
             "Other": []
         }
         self._strategy_examples: dict = {
             "Hybrid": [],
-            "First Fit": [],
-            "Best Fit": [],
-            "Worst Fit": [],
-            "Next Fit": [],
-            "Harmonic": [],
             "Other": []
         }
+        for strategy in STRATEGIES:
+            self._strategy_scores[strategy] = []
+            self._strategy_examples[strategy] = []
         self._round = 0
         self._scores_history: list[dict[str, float]] = []
         self._overall_scores: list[float] = []
@@ -27,18 +22,11 @@ class StrategyTracker:
         code = code.lower()
         if "hybrid" in code or "combin" in code:    # "combin" for combine, combined and combination
             return "Hybrid"
-        elif "harmonic" in code:
-            return "Harmonic"
-        elif "worst fit" in code:
-            return "Worst Fit"
-        elif "next fit" in code:
-            return "Next Fit"
-        elif "best fit" in code:
-            return "Best Fit"
-        elif "first fit" in code:
-            return "First Fit"
-        else:
-            return "Other"
+        for standard_name, keywords in STRATEGY_KEYWORDS.items():
+            for kw in keywords:
+                if kw in code:
+                    return standard_name
+        return "Other"
     
     def update_score(self, code: str, score: float) -> [dict, str]:
         """Update the score for a strategy."""

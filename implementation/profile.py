@@ -9,25 +9,19 @@ import logging
 import json
 from implementation import code_manipulation
 from torch.utils.tensorboard import SummaryWriter
+from tsp.config_tsp import STRATEGY_KEYWORDS
 
 
 def classify_strategy(code: str) -> str:
     """Classify the strategy used in the code."""
     code = code.lower()
-    if "hybrid" in code or "combin" in code:    # "combin" for combine, combined and combination:
+    if "hybrid" in code or "combin" in code:    # "combin" for combine, combined and combination
         return "Hybrid"
-    elif "harmonic" in code:
-        return "Harmonic"
-    elif "worst fit" in code:
-        return "Worst Fit"
-    elif "next fit" in code:
-        return "Next Fit"
-    elif "best fit" in code:
-        return "Best Fit"
-    elif "first fit" in code:
-        return "First Fit"
-    else:
-        return "Other"
+    for standard_name, keywords in STRATEGY_KEYWORDS.items():
+        for kw in keywords:
+            if kw in code:
+                return standard_name
+    return "Other"
 
 class Profiler:
     def __init__(
