@@ -40,7 +40,7 @@ trigger_probability_history = []  # 触发历史
 failed_count = []
 round_count = 0
 np.random.seed(10)
-pb_list = np.random.random(40)
+pb_list = np.random.random(400)
 
 def _trim_preface_of_body(sample: str) -> str:
     lines = sample.splitlines()
@@ -77,7 +77,7 @@ class LLMAPI(sampler.LLM):
                 strategy_prompt += f"{strategy}: Unknown\n"
         if round_count > 0:
             if overall_best[-1] != local_best[-1]:
-                current_trigger_probability = min(1.0, current_trigger_probability + 0.1)
+                current_trigger_probability = min(1.0, current_trigger_probability + 0.05)
             else:
                 current_trigger_probability = 0.0
         trigger_probability_history.append(current_trigger_probability)
@@ -224,7 +224,7 @@ if __name__ == '__main__':
     class_config = config.ClassConfig(llm_class=LLMAPI, sandbox_class=Sandbox)
     config_ = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
     tsp_20 = {'tsp_20': datasets['tsp20']}
-    global_max_sample_num = 3 * 4
+    global_max_sample_num = 25 * 4
     print("\nStarting FunSearch for TSP with strategy tracking...")
     start_time = time.time()
     funsearch.main(

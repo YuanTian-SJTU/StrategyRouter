@@ -1,5 +1,4 @@
 import numpy as np
-from tsp.gurobi_tsp_solver import solve_tsp_gurobi
 
 def get_cities_and_dist_matrix(instance):
     """
@@ -39,15 +38,13 @@ def evaluate(instances: dict) -> float:
     
     for name, instance in instances.items():
         cities, dist_matrix = get_cities_and_dist_matrix(instance)
+        gurobi_distance = instance['Gurobi']
         
         # Get FunSearch solution
         funsearch_path = tsp_solver(cities, dist_matrix)
         funsearch_distance = tsp_distance(funsearch_path, dist_matrix)
-        
-        # Get Gurobi solution
-        gurobi_path, gurobi_distance = solve_tsp_gurobi(dist_matrix)
 
-        if gurobi_path is not None:
+        if gurobi_distance:
             gap = ((funsearch_distance - gurobi_distance) / gurobi_distance * 100)
             total_gap += gap
             solved_instances += 1
