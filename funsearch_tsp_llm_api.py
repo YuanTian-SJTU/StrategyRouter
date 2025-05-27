@@ -1,3 +1,8 @@
+"""
+在《Large Language Models as Optimizers》一文中，面对50个城市的TSP问题时，OPRO方法使用gpt4时的最小gap为11%，并且始终没有收敛。对比其在5个、10个、20个城市的TSP问题中的表现，收敛速度分别为9.6、58.5、195.5，可以预测如果其能在50个城市的TSP问题中收敛，其收敛速度将在200以上。而Funsearch可以在166步收敛到5.82%，其表现显著优于OPRO方法，也优于NN方法和FI方法。
+"""
+
+
 import json
 import multiprocessing
 from typing import Collection, Any
@@ -224,7 +229,7 @@ if __name__ == '__main__':
     class_config = config.ClassConfig(llm_class=LLMAPI, sandbox_class=Sandbox)
     config_ = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
     tsp_50 = {'tsp_50': datasets['tsp50']}
-    global_max_sample_num = 25 * 4
+    global_max_sample_num = 50 * 4
     print("\nStarting FunSearch for TSP with strategy tracking...")
     start_time = time.time()
     funsearch.main(
