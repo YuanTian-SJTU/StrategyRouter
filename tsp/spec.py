@@ -1,15 +1,5 @@
 import numpy as np
-
-def get_cities_and_dist_matrix(instance):
-    """
-    Extract cities and distance matrix from the instance.
-    """
-    coords_dict = instance['coords']
-    # 按编号顺序排列
-    keys = sorted(coords_dict.keys(), key=lambda x: int(x))
-    cities = np.array([coords_dict[k] for k in keys], dtype=float)
-    dist_matrix = np.sqrt(((cities[:, None, :] - cities[None, :, :]) ** 2).sum(axis=2))
-    return cities, dist_matrix
+from tsp.tsp_utils import get_cities_and_dist_matrix
 
 def tsp_distance(path, dist_matrix):
     """Calculate the total distance of the TSP path."""

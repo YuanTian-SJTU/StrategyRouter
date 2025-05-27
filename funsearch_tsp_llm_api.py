@@ -223,13 +223,13 @@ if __name__ == '__main__':
         specification = f.read()
     class_config = config.ClassConfig(llm_class=LLMAPI, sandbox_class=Sandbox)
     config_ = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
-    tsp_20 = {'tsp_20': datasets['tsp20']}
+    tsp_50 = {'tsp_50': datasets['tsp50']}
     global_max_sample_num = 25 * 4
     print("\nStarting FunSearch for TSP with strategy tracking...")
     start_time = time.time()
     funsearch.main(
         specification=specification,
-        inputs=tsp_20,
+        inputs=tsp_50,
         config=config_,
         max_sample_nums=global_max_sample_num,
         class_config=class_config,
