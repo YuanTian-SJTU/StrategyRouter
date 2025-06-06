@@ -20,7 +20,10 @@ def calculate_total_value(selected_items):
     Calculate the total value of selected items
     selected_items: list of (weight, value) tuples
     """
-    return sum(value for _, value in selected_items)
+    if selected_items:
+        return sum(value for _, value in selected_items)
+    else:
+        return 0
 
 def calculate_total_weight(selected_items):
     """
@@ -28,32 +31,6 @@ def calculate_total_weight(selected_items):
     selected_items: list of (weight, value) tuples
     """
     return sum(weight for weight, _ in selected_items)
-
-def solve_offline_optimal(items, capacity):
-    """
-    Solve the offline optimal solution using dynamic programming
-    """
-    n = len(items)
-    # dp[i][j] represents the maximum value achievable with first i items and capacity j
-    dp = np.zeros((n + 1, capacity + 1))
-    
-    for i in range(1, n + 1):
-        weight, value = items[i-1]
-        for j in range(capacity + 1):
-            if weight <= j:
-                dp[i][j] = max(dp[i-1][j], dp[i-1][j-weight] + value)
-            else:
-                dp[i][j] = dp[i-1][j]
-    
-    # Backtrack to find selected items
-    selected_items = []
-    j = capacity
-    for i in range(n, 0, -1):
-        if dp[i][j] != dp[i-1][j]:
-            selected_items.append(items[i-1])
-            j -= items[i-1][0]
-    
-    return selected_items
 
 def online_knapsack_solver(items, capacity):
     """
@@ -85,10 +62,7 @@ def evaluate(instances: dict) -> float:
     
     for name, instance in instances.items():
         items, capacity = get_items_and_capacity(instance)
-        
-        # Calculate offline optimal solution
-        optimal_items = solve_offline_optimal(items, capacity)
-        optimal_value = calculate_total_value(optimal_items)
+        optimal_value = instance['optimal']
         
         # Get online algorithm solution
         selected_items = online_knapsack_solver(items, capacity)

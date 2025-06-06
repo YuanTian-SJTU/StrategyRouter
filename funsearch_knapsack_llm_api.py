@@ -142,7 +142,7 @@ class LLMAPI(sampler.LLM):
 class Sandbox(evaluator.Sandbox):
     def __init__(self, verbose=False, numba_accelerate=True):
         self._verbose = verbose
-        self._numba_accelerate = numba_accelerate
+        self._numba_accelerate = False
         self._strategy_tracker = strategy_tracker.StrategyTracker()
     def run(
             self,
