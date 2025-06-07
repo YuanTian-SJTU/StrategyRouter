@@ -224,7 +224,7 @@ if __name__ == '__main__':
     class_config = config.ClassConfig(llm_class=LLMAPI, sandbox_class=Sandbox)
     config_ = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
     okp_50 = {'okp_50': datasets['okp50']}
-    global_max_sample_num = 5 * 4
+    global_max_sample_num = 25 * 4
     print("\nStarting FunSearch for OKP with strategy tracking...")
     start_time = time.time()
     funsearch.main(
