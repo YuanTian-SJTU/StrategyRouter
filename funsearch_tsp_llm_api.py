@@ -1,34 +1,17 @@
-"""
-在《Large Language Models as Optimizers》一文中，面对50个城市的TSP问题时，OPRO方法使用gpt4时的最小gap为11%，并且始终没有收敛。对比其在5个、10个、20个城市的TSP问题中的表现，收敛速度分别为9.6、58.5、195.5，可以预测如果其能在50个城市的TSP问题中收敛，其收敛速度将在200以上。而Funsearch可以在166步收敛到5.82%，其表现显著优于OPRO方法，也优于NN方法和FI方法。
-"""
-
-
-import json
-import multiprocessing
-from typing import Collection, Any
-from matplotlib import pyplot as plt
-import http.client
-import numpy as np
-import time
-
-from implementation import funsearch
-from implementation import config
-from implementation import sampler
-from implementation import evaluator_accelerate
-from implementation import evaluator
-from implementation import code_manipulation
-from implementation import strategy_tracker
+from funsearch_llm_api_base import BaseLLMAPI, BaseSandbox, generate_plots
 from tsp.tsp_utils import datasets
 from tsp.config_tsp import STRATEGIES
+import numpy as np
 
 # 读取API密钥
 with open('api_key.txt', 'r') as f:
     api_key = f.read()
 
 # 记录分数
-overall_best = []   # 全局最佳
-local_best = []    # 局部最佳
+overall_best = []
+local_best = []
 strategy_list = []
+# 记录不同策略的分数
 strategy_scores = {
     "Hybrid": [],
     "Other": []
@@ -47,31 +30,16 @@ round_count = 0
 np.random.seed(10)
 pb_list = np.random.random(400)
 
-def _trim_preface_of_body(sample: str) -> str:
-    lines = sample.splitlines()
-    func_body_lineno = 0
-    find_def_declaration = False
-    for lineno, line in enumerate(lines):
-        if line[:3] == 'def':
-            func_body_lineno = lineno
-            find_def_declaration = True
-            break
-    if find_def_declaration:
-        code = ''
-        for line in lines[func_body_lineno + 1:]:
-            code += line + '\n'
-        return code
-    return sample
 
-class LLMAPI(sampler.LLM):
+class LLMAPI(BaseLLMAPI):
+    """tsp特定的LLM API实现"""
+
     def __init__(self, samples_per_prompt: int, trim=True):
-        super().__init__(samples_per_prompt)
-        self._trim = trim
-
-    def draw_samples(self, prompt: str) -> Collection[str]:
-        return [self._draw_sample(prompt) for _ in range(self._samples_per_prompt)]
+        super().__init__(samples_per_prompt, trim)
+        self.set_api_key(api_key)
 
     def _draw_sample(self, content: str) -> str:
+        # 提取策略分
         global strategy_scores, round_count, current_trigger_probability, trigger_probability_history, fixed_count
         strategy_prompt = ''
         for strategy, scores in strategy_scores.items():
@@ -80,16 +48,22 @@ class LLMAPI(sampler.LLM):
                 strategy_prompt += f"{strategy}: Best score {score:.2f}\n"
             else:
                 strategy_prompt += f"{strategy}: Unknown\n"
+
+        # 动态调整触发概率
         if round_count > 0:
             if overall_best[-1] != local_best[-1]:
-                current_trigger_probability = min(1.0, current_trigger_probability + 0.05)
+                current_trigger_probability = min(1.0, current_trigger_probability + 0.1)  # 增加触发概率
             else:
-                current_trigger_probability = 0.0
+                current_trigger_probability = 0.0  # 重置触发概率
         trigger_probability_history.append(current_trigger_probability)
+
         if pb_list[round_count] < current_trigger_probability:
+            # 根据fixed_count动态调整策略选择概率
             total_count = sum(fixed_count.values())
             if total_count > 0:
+                # 计算每个策略的权重（使用次数的倒数）
                 weights = [1 / (fixed_count[strategy] + 1) for strategy in selectable_strategies]
+                # 归一化权重
                 weights = np.array(weights) / sum(weights)
                 strategy = np.random.choice(selectable_strategies, p=weights)
             else:
@@ -97,6 +71,7 @@ class LLMAPI(sampler.LLM):
             fixed_count[strategy] += 1
         else:
             strategy = None
+
         if strategy is not None:
             additional_prompt = (
                 'Complete a different and more complex Python function. '
@@ -107,7 +82,7 @@ class LLMAPI(sampler.LLM):
         else:
             additional_prompt = (
                 'Complete a different and more complex Python function. '
-                'Be creative and you can implement various strategies like Nearest '+selectable_strategies_str+'or other approaches. '
+                'Be creative and you can implement various strategies like First Fit, Best Fit, Worst Fit, Next Fit or Harmonic approaches. '
                 'You can also combine multiple strategies or create new ones. '
                 'Only output the Python code, no descriptions.'
                 'In the function docstring, clearly state which strategy you are using.'
@@ -115,50 +90,26 @@ class LLMAPI(sampler.LLM):
             )
         prompt = '\n'.join([content, additional_prompt])
         round_count += 1
-        while True:
-            try:
-                conn = http.client.HTTPSConnection("api.siliconflow.cn")
-                payload = json.dumps({
-                    "max_tokens": 512,
-                    "model": "THUDM/GLM-4-32B-0414",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                })
-                headers = {
-                    'Authorization': 'Bearer {}'.format(api_key),
-                    'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
-                    'Content-Type': 'application/json'
-                }
-                conn.request("POST", "/v1/chat/completions", payload, headers)
-                res = conn.getresponse()
-                data = res.read().decode("utf-8")
-                data = json.loads(data)
-                response = data['choices'][0]['message']['content']
-                if self._trim:
-                    response = _trim_preface_of_body(response)
-                return response
-            except Exception:
-                continue
 
-class Sandbox(evaluator.Sandbox):
-    def __init__(self, verbose=False, numba_accelerate=True):
-        self._verbose = verbose
-        self._numba_accelerate = numba_accelerate
-        self._strategy_tracker = strategy_tracker.StrategyTracker()
+        return self._call_api(prompt)
+
+
+class Sandbox(BaseSandbox):
+    """tsp特定的Sandbox实现"""
+    def __init__(self, numba_accelerate=False):
+        super().__init__(numba_accelerate=numba_accelerate)
+
     def run(
             self,
             program: str,
             function_to_run: str,
             function_to_evolve: str,
-            inputs: Any,
+            inputs: any,
             test_input: str,
             timeout_seconds: int,
             **kwargs
-    ) -> tuple[Any, bool]:
+    ) -> tuple[any, bool]:
+        """Returns `function_to_run(test_input)` and whether execution succeeded."""
         dataset = inputs[test_input]
         result_queue = multiprocessing.Queue()
         process = multiprocessing.Process(
@@ -168,6 +119,7 @@ class Sandbox(evaluator.Sandbox):
         process.start()
         process.join(timeout=timeout_seconds)
         if process.is_alive():
+            # if the process is not finished in time, we consider the program illegal
             process.terminate()
             process.join()
             results = None, False
@@ -176,160 +128,80 @@ class Sandbox(evaluator.Sandbox):
                 results = result_queue.get_nowait()
             else:
                 results = None, False
-        if self._verbose:
-            print(f'================= Evaluated Program =================')
-            program_: code_manipulation.Program = code_manipulation.text_to_program(text=program)
-            func_to_evolve_: str = kwargs.get('func_to_evolve', 'priority')
-            function_: code_manipulation.Function = program_.get_function(func_to_evolve_)
-            function_: str = str(function_).strip('\n')
-            print(f'{function_}')
-            print(f'-----------------------------------------------------')
-            print(f'Score: {str(results)}')
-            print(f'=====================================================')
-            print(f'\n')
-        global strategy_scores, failed_count
-        if results[0] is not None:
-            if not overall_best:
+
+        self._print_verbose_info(program, results, **kwargs)
+
+        # 记录当前最高分和策略分数
+        global strategy_scores, failed_count, overall_best, local_best, strategy_list
+        if results[0] is not None:  # 如果分数不为空
+            # 分数列表
+            if not overall_best:  # 如果分数列表为空，直接添加当前分数
                 overall_best.append(results[0])
-            else:
+            else:  # 如果分数列表不为空，添加当前分数和列表中上一分数更高的一个
                 overall_best.append(max(overall_best[-1], results[0]))
             local_best.append(results[0])
+            # 策略分数
             strategy_scores, stg = self._strategy_tracker.update_score(program, results[0])
             strategy_list.append(stg)
+            # 记录一个正确函数
             failed_count.append(0)
         else:
-            overall_best.append(overall_best[-1])
+            overall_best.append(overall_best[-1] if overall_best else -float('inf'))
             local_best.append(-float('inf'))
             strategy_scores, stg = self._strategy_tracker.update_score(program, -float('inf'))
             strategy_list.append(stg)
+            # 记录一个错误函数
             failed_count.append(1)
+
         return results
-    def _compile_and_run_function(self, program, function_to_run, function_to_evolve, dataset, numba_accelerate, result_queue):
-        try:
-            if numba_accelerate:
-                program = evaluator_accelerate.add_numba_decorator(
-                    program=program,
-                    function_to_evolve=function_to_evolve
-                )
-            all_globals_namespace = {}
-            exec(program, all_globals_namespace)
-            function_to_run = all_globals_namespace[function_to_run]
-            results = function_to_run(dataset)
-            if not isinstance(results, (int, float)):
-                result_queue.put((None, False))
-                return
-            result_queue.put((results, True))
-        except  Exception as e:
-            print("Sandox error:", e)
-            result_queue.put((None, False))
+
 
 if __name__ == '__main__':
+    from implementation import config, funsearch
+    import time
+    import multiprocessing
+
     with open("tsp/spec.py", "r", encoding="utf-8") as f:
         specification = f.read()
+
     class_config = config.ClassConfig(llm_class=LLMAPI, sandbox_class=Sandbox)
-    config_ = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
-    tsp_50 = {'tsp_50': datasets['tsp50']}
-    global_max_sample_num = 50 * 4
-    print("\nStarting FunSearch for TSP with strategy tracking...")
+
+    config = config.Config(samples_per_prompt=4, evaluate_timeout_seconds=300)
+
+    tsp50 = {'tsp50': datasets['tsp50']}
+    global_max_sample_num = 2 * 4  # n * m, n is total number of rounds and m is the number of samplers
+
+    print("\nStarting FunSearch with strategy tracking...")
+    # 开始时间
     start_time = time.time()
     funsearch.main(
         specification=specification,
-        inputs=tsp_50,
-        config=config_,
+        inputs=tsp50,
+        config=config,
         max_sample_nums=global_max_sample_num,
         class_config=class_config,
         log_dir='logs/funsearch_tsp_llm_api',
     )
+    # 结束时间
     end_time = time.time()
+    # 计算运行时间
     run_time = end_time - start_time
+
     print("\nGenerating plots...")
-    plt.figure(figsize=(20, 16))
-    plt.subplot(2, 2, 1)
-    if overall_best:
-        max_score_index = overall_best.index(max(overall_best))
-        plt.plot(range(len(overall_best)), overall_best, 'b-', label='Overall Score')
-        plt.scatter(max_score_index, overall_best[max_score_index], color='red',
-                    label=f'Max Score ({max_score_index}, {overall_best[max_score_index]:.2f})')
-    plt.title('Overall Score Progression')
-    plt.xlabel('Sample Number')
-    plt.ylabel('Score')
-    plt.legend()
-    plt.grid(False)
-    plt.subplot(2, 2, 2)
-    plt.plot(range(len(trigger_probability_history)), trigger_probability_history, 'g-', label='Trigger Probability')
-    plt.plot(range(len(pb_list[:len(trigger_probability_history)])), pb_list[:len(trigger_probability_history)], 'r--', label='Random Threshold')
-    plt.title('Trigger Probability and Random Threshold')
-    plt.xlabel('Sample Number')
-    plt.ylabel('Probability')
-    plt.legend()
-    plt.grid(False)
-    plt.subplot(2, 2, 3)
-    failed_list = []
-    failed_ratios = []
-    for i in range(len(failed_count)):
-        failed_list.append(sum(failed_count[:i+1]))
-        failed_ratios.append(failed_list[-1] / len(failed_list) * 100)
-    ax1 = plt.gca()
-    ax2 = ax1.twinx()
-    ax1.plot(range(len(failed_list)), failed_list, 'b-', label='Failed Count')
-    ax2.plot(range(len(failed_ratios)), failed_ratios, 'r-', label='Failed Ratio (%)')
-    ax1.set_xlabel('Sample Number')
-    ax1.set_ylabel('Failed Count', color='b')
-    ax2.set_ylabel('Failed Ratio (%)', color='r')
-    ax1.tick_params(axis='y', labelcolor='b')
-    ax2.tick_params(axis='y', labelcolor='r')
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-    plt.title('Failed Attempts Statistics')
-    plt.grid(False)
-    plt.subplot(2, 2, 4)
-    if not strategy_scores:
-        print("Warning: No strategies were recorded!")
-    else:
-        strategies = list(strategy_scores.keys())
-        max_scores = [max(scores) if scores else -np.inf for scores in strategy_scores.values()]
-        samples = [len(scores) for scores in strategy_scores.values()]
-        total_score = sum(samples)
-        wedges, texts, autotexts = plt.pie(
-            samples,
-            labels=strategies,
-            autopct=lambda p: f'{p:.1f}%',
-            startangle=140,
-        )
-        for i, a in enumerate(autotexts):
-            a.set_text(f'{strategies[i]}: {max_scores[i]:.2f}, {samples[i]}')
-            a.set_color('black')
-            a.set_fontsize(10)
-        plt.setp(texts, size=10)
-        plt.setp(autotexts, size=10)
-        plt.axis('equal')
-        plt.title('Strategy Score Distribution (Best Score, Sample Count)')
-        plt.legend()
-    plt.tight_layout()
-    plt.savefig('strategy_scores_tsp.png')
-    plt.show()
-    print("\nFinal Strategy Statistics:")
-    print("=" * 50)
-    for strategy in strategy_scores:
-        scores = strategy_scores[strategy]
-        if scores:
-            print(f"{strategy}:")
-            print(f"  Best Score: {max(scores):.2f}")
-            print(f"  Best Attempt: {scores.index(max(scores))}")
-            print(f"  Average Score: {sum(scores) / len(scores):.2f}")
-            print(f"  Number of Total Attempts: {len(scores)}")
-            if strategy in fixed_count:
-                print(f"  Number of Attempts with Fixed Strategy: {fixed_count[strategy]}")
-            print("-" * 50)
-    print("=" * 50)
-    print("Summary:\n")
-    print(f"Total Samples: {len(overall_best)}")
-    print(f"Best Overall Score: {max(overall_best):.2f}")
-    print(f"Best Overall Attempt: {overall_best.index(max(overall_best))}")
-    print(f"Total Failed Attempts: {failed_list[-1]} ({failed_ratios[-1]:.2f}%)")
-    print(f"Total Time: {run_time:.2f} seconds ({run_time / len(overall_best):.2f} seconds per attempt on average)")
+    generate_plots(
+        overall_best=overall_best,
+        local_best=local_best,
+        trigger_probability_history=trigger_probability_history,
+        pb_list=pb_list,
+        failed_count=failed_count,
+        strategy_scores=strategy_scores,
+        fixed_count=fixed_count,
+        run_time=run_time,
+        filename='strategy_scores_tsp.png'
+    )
+
+    # 保存分数到csv
     with open('StrategyRouterTSPData.csv', 'w') as f:
         f.write('Sample Number, Overall Best, Local, Strategy\n')
         for i, score in enumerate(overall_best):
-            f.write(f'{i}, {score}, {local_best[i]}, {strategy_list[i]}\n') 
+            f.write(f'{i}, {score}, {local_best[i]}, {strategy_list[i]}\n')

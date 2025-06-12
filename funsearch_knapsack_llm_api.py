@@ -98,6 +98,7 @@ class Sandbox(BaseSandbox):
     """FSSP特定的Sandbox实现"""
     def __init__(self, numba_accelerate=False):
         super().__init__(numba_accelerate=numba_accelerate)
+        self.evolve_func_name = 'accept_item'
 
     def run(
             self,

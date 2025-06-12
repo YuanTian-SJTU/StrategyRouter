@@ -96,6 +96,7 @@ class BaseSandbox(evaluator.Sandbox):
         self._verbose = verbose
         self._numba_accelerate = numba_accelerate
         self._strategy_tracker = strategy_tracker.StrategyTracker()
+        self.evolve_func_name = 'priority'
 
     def _compile_and_run_function(self, program, function_to_run, function_to_evolve, dataset, numba_accelerate,
                                   result_queue):
@@ -123,7 +124,7 @@ class BaseSandbox(evaluator.Sandbox):
         if self._verbose:
             print(f'================= Evaluated Program =================')
             program_: code_manipulation.Program = code_manipulation.text_to_program(text=program)
-            func_to_evolve_: str = kwargs.get('func_to_evolve', 'priority')
+            func_to_evolve_: str = kwargs.get('func_to_evolve', self.evolve_func_name)
             function_: code_manipulation.Function = program_.get_function(func_to_evolve_)
             function_: str = str(function_).strip('\n')
             print(f'{function_}')
