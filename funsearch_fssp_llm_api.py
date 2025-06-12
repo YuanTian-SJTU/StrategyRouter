@@ -180,7 +180,7 @@ if __name__ == '__main__':
         config=config,
         max_sample_nums=global_max_sample_num,
         class_config=class_config,
-        log_dir='logs/funsearch_llm_api',
+        log_dir='logs/funsearch_fssp_llm_api',
     )
     # 结束时间
     end_time = time.time()
@@ -197,11 +197,11 @@ if __name__ == '__main__':
         strategy_scores=strategy_scores,
         fixed_count=fixed_count,
         run_time=run_time,
-        filename='strategy_scores_fssp_packing-1.png'
+        filename='strategy_scores_fssp.png'
     )
 
     # 保存分数到csv
-    with open('StrategyRouterFSSPData-1.csv', 'w') as f:
+    with open('StrategyRouterFSSPData.csv', 'w') as f:
         f.write('Sample Number, Overall Best, Local, Strategy\n')
         for i, score in enumerate(overall_best):
             f.write(f'{i}, {score}, {local_best[i]}, {strategy_list[i]}\n')
