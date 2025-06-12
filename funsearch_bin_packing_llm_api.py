@@ -3,6 +3,8 @@ import multiprocessing
 from typing import Collection, Any
 from matplotlib import pyplot as plt
 import http.client
+import numpy as np
+import time
 
 from implementation import funsearch
 from implementation import config
@@ -12,13 +14,9 @@ from implementation import evaluator
 from implementation import code_manipulation
 from implementation import strategy_tracker
 import bin_packing_utils
+from bin_packing.config_bin_packing import STRATEGIES
 
-import json
-import multiprocessing
-from typing import Collection, Any
-import http.client
-import numpy as np
-import time
+
 
 # 读取API密钥
 with open('api_key.txt', 'r') as f:
@@ -31,26 +29,17 @@ strategy_list = []
 # 记录不同策略的分数
 strategy_scores = {
     "Hybrid": [],
-    "First Fit": [],
-    "Best Fit": [],
-    "Worst Fit": [],
-    "Next Fit": [],
-    "Harmonic": [],
     "Other": []
 }
-selectable_strategies = ["First Fit", "Best Fit", "Worst Fit", "Next Fit", "Harmonic"]
-# 使用给定策略的概率
-current_trigger_probability = 0.0  # 初始触发概率
-trigger_probability_history = []  # 记录触发概率历史
-# 使用给定策略的次数
-fixed_count = {
-    'First Fit': 0,
-    'Best Fit': 0,
-    'Worst Fit': 0,
-    "Next Fit": 0,
-    "Harmonic": 0,
-}
-# 错误函数数量
+fixed_count = {}
+selectable_strategies = STRATEGIES  # 可选策略
+selectable_strategies_str = ''
+for strategy in STRATEGIES:
+    strategy_scores[strategy] = []
+    fixed_count[strategy] = 0
+    selectable_strategies_str += (strategy + ', ')
+current_trigger_probability = 0.0  # 当前触发概率
+trigger_probability_history = []  # 触发历史
 failed_count = []
 round_count = 0
 np.random.seed(10)
@@ -417,7 +406,7 @@ if __name__ == '__main__':
 
     plt.tight_layout()
     # 保存图片
-    plt.savefig('strategy_scores.png')
+    plt.savefig('strategy_scores_bin_packing.png')
     plt.show()
 
     # Print final strategy statistics
@@ -445,7 +434,7 @@ if __name__ == '__main__':
     print(f"Total Time: {run_time:.2f} seconds ({run_time / len(overall_best):.2f} seconds per attempt on average)")
 
     # 保存分数到csv
-    with open('StrategyRouterData.csv', 'w') as f:
+    with open('StrategyRouterBinPackingData.csv', 'w') as f:
         f.write('Sample Number, Overall Best, Local, Strategy\n')
         for i, score in enumerate(overall_best):
             f.write(f'{i}, {score}, {local_best[i]}, {strategy_list[i]}\n')

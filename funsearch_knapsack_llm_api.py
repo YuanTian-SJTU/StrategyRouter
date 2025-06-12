@@ -199,6 +199,7 @@ class Sandbox(evaluator.Sandbox):
             strategy_list.append(stg)
             failed_count.append(1)
         return results
+    
     def _compile_and_run_function(self, program, function_to_run, function_to_evolve, dataset, numba_accelerate, result_queue):
         try:
             if numba_accelerate:
