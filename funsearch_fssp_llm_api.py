@@ -82,7 +82,7 @@ class LLMAPI(BaseLLMAPI):
         else:
             additional_prompt = (
                 'Complete a different and more complex Python function. '
-                'Be creative and you can implement various strategies like Nearest '+selectable_strategies_str+'or other approaches. '
+                'Be creative and you can implement various strategies like '+selectable_strategies_str+'or other approaches. '
                 'You can also combine multiple strategies or create new ones. '
                 'Only output the Python code, no descriptions.'
                 'In the function docstring, clearly state which strategy you are using.'
